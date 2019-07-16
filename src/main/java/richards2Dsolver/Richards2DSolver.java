@@ -120,7 +120,7 @@ public class Richards2DSolver {
 		}
 
 		
-		for(int picard=0; picard<1; picard++) {
+//		for(int picard=0; picard<1; picard++) {
 
 			/*
 			 * Compute kappa at time level n
@@ -148,13 +148,13 @@ public class Richards2DSolver {
 
 			for(Integer edge : Topology.l.keySet()) {
 				/*
-				 * FIXME: everywhere NO FLUX BOUNDARY CONDITION
+				 * Fluxes through edges within the domain
 				 */
 				double sideFlux = 0.0;
 
 				if(Topology.r.get(edge)==0) {
 					sideFlux = 0.0;  // depends on the type of the boundary condition and its value
-					rhss.put(Topology.l.get(edge), rhss.get(Topology.l.get(edge))-sideFlux);
+					rhss.put(Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux);
 				} else {
 					sideFlux = Variables.timeDelta*Math.max( Variables.kappas.get(Topology.l.get(edge)), Variables.kappas.get(Topology.r.get(edge)) )*( Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[1] - Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1] )/Geometry.delta_j.get(edge)*Geometry.edgesLenght.get(edge);
 
@@ -162,6 +162,40 @@ public class Richards2DSolver {
 					rhss.put( Topology.r.get(edge), rhss.get(Topology.r.get(edge))-sideFlux );
 
 				}
+			}
+			
+			double sumBoundaryFlow = 0.0;
+			for(Integer edge : Topology.edgesLabel.keySet()) {
+				/*
+				 * FIXME: boundary conditions
+				 * if 0 no flux
+				 * if 1 neumann 
+				 */
+				double sideFlux = 0.0;
+
+				if(Topology.edgesLabel.get(edge)==0) {
+					sideFlux = 0.0;  // no flux
+					rhss.put(Topology.l.get(edge), rhss.get(Topology.l.get(edge))-sideFlux);
+				} else if(Topology.edgesLabel.get(edge)==1) { // neumann
+					sideFlux = Variables.timeDelta*Geometry.edgesLenght.get(edge)*0.0;  //0.00000667;
+
+					rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
+					sumBoundaryFlow += sideFlux;
+
+				} else if(Topology.edgesLabel.get(edge)==2) { // dirichlet
+					double kappa =  Variables.kappas.get(Topology.l.get(edge)) * Geometry.edgesLenght.get(edge); //, unsaturatedHydraulicConductivity.hydraulicConductivity(0.0,Topology.l.get(edge)) 
+					sideFlux = Variables.timeDelta * kappa * ( 0.1/Geometry.delta_j.get(edge) + Geometry.edgeNormalVector.get(edge)[1] );// min(0.0,Geometry.edgeNormalVector.get(edge)[1])???
+					rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
+					
+				} else if(Topology.edgesLabel.get(edge)==3) { // free drainage
+					double kappa =  Variables.kappas.get(Topology.l.get(edge)) * Geometry.edgesLenght.get(edge);
+					sideFlux = Variables.timeDelta * kappa * ( Geometry.edgeNormalVector.get(edge)[1] );  // min(0.0,Geometry.edgeNormalVector.get(edge)[1])???
+					System.out.println("edge: " + edge + "sideFlux: " + sideFlux);
+					rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
+					sumBoundaryFlow += sideFlux;
+				}
+				
+				//sumBoundaryFlow += sideFlux;
 			}
 
 
@@ -201,7 +235,7 @@ public class Richards2DSolver {
 			}
 
 			/*
-			 * Compute water volumes at time level n
+			 * Compute water volumes at time level n+1
 			 */
 			for(Integer element : Topology.s_i.keySet()) {
 				Variables.volumesNew.put(element, Variables.thetas.get(element)*Geometry.elementsArea.get(element));
@@ -214,6 +248,17 @@ public class Richards2DSolver {
 				}
 			}
 
+			
+			/*
+			 * Update border fluxes with dirichlet 
+			 */
+			for(Integer edge : Topology.edgesLabel.keySet()) {
+				if(Topology.edgesLabel.get(edge)==2) { // 
+					double kappa =  Variables.kappas.get(Topology.l.get(edge)) * Geometry.edgesLenght.get(edge); //, unsaturatedHydraulicConductivity.hydraulicConductivity(0.0,Topology.l.get(edge)) 
+					//sideFlux = Variables.timeDelta * kappa * ( 0.0 - Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1] )/Geometry.delta_j.get(edge);
+					sumBoundaryFlow += Variables.timeDelta * kappa * ( (0.1-Variables.waterSuctions.get(Topology.l.get(edge)))/Geometry.delta_j.get(edge) + Geometry.edgeNormalVector.get(edge)[1] );
+				}
+			}
 			double volume = 0.0;
 			double volumeNew = 0.0;
 			for(Integer element : Topology.s_i.keySet()) {
@@ -221,14 +266,14 @@ public class Richards2DSolver {
 				volumeNew += Variables.volumesNew.get(element);
 			}
 
-			double errorVolume = volumeNew - volume - timeDelta*(0.0 + 0.0);
+			double errorVolume = volumeNew - volume - (sumBoundaryFlow + 0.0);
 			System.out.println("ERROR VOLUME : " + errorVolume);
 			//			for(Integer element : Topology.s_i.keySet()) {
 			//				System.out.println("\t" + element + "\t" + Variables.waterSuctions.get(element) );
 			//			}
 			//			System.out.println("\n\n");
-		}
-		//} // close picard iteration
+
+//		} // close picard iteration
 	}
 
 }

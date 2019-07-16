@@ -34,7 +34,8 @@ public class TestCallRichardsSolver {
 	public void Test() throws Exception {
 
 		//String fileName = "resources/input/square_with_subdomain_100.msh";
-		String fileName = "resources/input/square22_1.msh";
+		//String fileName = "resources/input/square22_1.msh";
+		String fileName = "resources/input/slope.msh";
 
 		String splitter = " ";
 
@@ -56,7 +57,7 @@ public class TestCallRichardsSolver {
 		
 		double[] alphaSpecificStorage = new double[] {0.0, 0.0};
 		double[] betaSpecificStorage = new double[] {0.0, 0.0};
-		double[] ks = new double[] {0.28, 0.28};//{0.0000028, 0.0000123};
+		double[] ks = new double[] {0.0000028, 0.0000028};//{0.0000028, 0.0000123};
 		double[] par1SWRC = new double[] {1.56,1.56};
 		double[] par2SWRC = new double[] {3.6,3.6};
 		double[] par3SWRC = null;
@@ -73,8 +74,8 @@ public class TestCallRichardsSolver {
 		 */
 		Map<Integer, Double> psi = new HashMap<Integer, Double>();
 		for(Integer i : generateMesh.elementsCentroidsCoordinates.keySet()) {
-			//psi.put(i, -generateMesh.elementsCentroidsCoordinates.get(i)[1]);
-			psi.put(i,-0.5);
+			psi.put(i, -generateMesh.elementsCentroidsCoordinates.get(i)[1]);
+			//psi.put(i,-0.5);
 		}
 		//psi.put(6, 0.0);
 		//psi.put(5, 0.0);
@@ -108,14 +109,14 @@ public class TestCallRichardsSolver {
 		solver.thetaS = thetaS;
 		solver.thetaR = thetaR;
 		solver.elementsLabel = reader.elementsLabel;
-		solver.edgesLabel = reader.borderEdgesLabel;
+		solver.edgesLabel = generateMesh.boundaryLabels;
 		solver.psi = psi;
 		solver.soilHydraulicModel = "VanGenuchten";
 		solver.typeUHCModel = "MualemVanGenuchten";
 		solver.typeMatop = "2DRichards";
 		solver.checkData = false;
-		solver.tTimestep = 1000.0;
-		solver.timeDelta = 1.0;
+		solver.tTimestep = 3600.0;
+		solver.timeDelta = 50.0;
 		
 		solver.solve();
 		

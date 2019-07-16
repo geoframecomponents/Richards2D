@@ -71,6 +71,24 @@ public class Matop2DRichards extends Matop {
 		//			for(Integer element : Topology.s_i.keySet()) {
 		//				System.out.println("\t" + element + "\t" + Apsi.get(element));
 		//			}
+		
+		for(Integer edge : Topology.edgesLabel.keySet()) {
+			/*
+			 * FIXME: boundary conditions
+			 * if 0 no flux
+			 * if 1 neumann 
+			 * if 2 dirichlet
+			 */
+			
+			if(Topology.edgesLabel.get(edge)==2) { // dirichlet
+				kappa = Variables.kappas.get(Topology.l.get(edge))*Geometry.edgesLenght.get(edge);
+				sideFlux = Variables.timeDelta * kappa * ( -variable.get(Topology.l.get(edge)) )/Geometry.delta_j.get(edge);
+				
+				Apsi.put( Topology.l.get(edge), Apsi.get(Topology.l.get(edge))-sideFlux );
+			}
+			
+		}
+
 		return Apsi;
 		
 	}
