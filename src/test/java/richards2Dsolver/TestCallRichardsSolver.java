@@ -19,13 +19,18 @@
 
 package richards2Dsolver;
 
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.jgrasstools.gears.io.timedependent.OmsTimeSeriesIteratorReader;
 import org.junit.Test;
 
+import bidimensionalProblemTimeDependent.WriteNetCDFRichards2D;
+import bufferWriter.RichardsBuffer2D;
 import generatemesh.GenerateTriangularMesh;
 import meshtopology.TopologyTriangularMesh;
+import monodimensionalProblemTimeDependent.WriteNetCDFRichards1D;
 import readtriangularization.Readmsh;
 
 public class TestCallRichardsSolver {
@@ -35,7 +40,7 @@ public class TestCallRichardsSolver {
 
 		//String fileName = "resources/input/square_with_subdomain_100.msh";
 		//String fileName = "resources/input/square22_1.msh";
-		String fileName = "resources/input/slope.msh";
+		String fileName = "resources/input/boundary_condition.msh";
 
 		String splitter = " ";
 
@@ -55,9 +60,29 @@ public class TestCallRichardsSolver {
 		generateMesh.geometryType = "EuclideanCartesian";
 		generateMesh.process();
 		
+		//Boundary conditions
+		String startDate = "2017-01-01 00:00";
+		String endDate = "2017-01-02 00:00";
+		int timeStepMinutes = 5;
+		String fId = "ID";
+		
+		//NetCDF
+		String pathOutput = "C:\\Users\\Niccolo\\eclipse-workspace\\Richards2D\\resources\\output.nc"; //Output_EGU_Soil_1_Richards_KWithTemp_New1.nc";
+		
+		String outputDescription = " Prova 2D";
+		
+		
+		String path ="resources/input/Test.csv";
+				
+		
+		OmsTimeSeriesIteratorReader readerBC = getTimeseriesReader(path, fId, startDate, endDate, timeStepMinutes);
+		
+		RichardsBuffer2D buffer = new RichardsBuffer2D();
+		WriteNetCDFRichards2D writeNetCDF = new WriteNetCDFRichards2D();
+		
 		double[] alphaSpecificStorage = new double[] {0.0, 0.0};
 		double[] betaSpecificStorage = new double[] {0.0, 0.0};
-		double[] ks = new double[] {0.0000028, 0.0000028};//{0.0000028, 0.0000123};
+		double[] ks = new double[] {0.00028, 0.00028};//{0.0000028, 0.0000123};
 		double[] par1SWRC = new double[] {1.56,1.56};
 		double[] par2SWRC = new double[] {3.6,3.6};
 		double[] par3SWRC = null;
@@ -75,7 +100,8 @@ public class TestCallRichardsSolver {
 		Map<Integer, Double> psi = new HashMap<Integer, Double>();
 		for(Integer i : generateMesh.elementsCentroidsCoordinates.keySet()) {
 			psi.put(i, -generateMesh.elementsCentroidsCoordinates.get(i)[1]);
-			//psi.put(i,-0.5);
+//			psi.put(i,-0.43737);
+//			psi.put(i,-0.42737);
 		}
 		//psi.put(6, 0.0);
 		//psi.put(5, 0.0);
@@ -109,17 +135,59 @@ public class TestCallRichardsSolver {
 		solver.thetaS = thetaS;
 		solver.thetaR = thetaR;
 		solver.elementsLabel = reader.elementsLabel;
-		solver.edgesLabel = generateMesh.boundaryLabels;
-		solver.psi = psi;
+		solver.edgesBoundaryBCType = generateMesh.edgeBoundaryBCType;
+		solver.edgesBoundaryBCValue = generateMesh.edgeBoundaryBCValue;
+		//solver.psi = psi;
 		solver.soilHydraulicModel = "VanGenuchten";
 		solver.typeUHCModel = "MualemVanGenuchten";
 		solver.typeMatop = "2DRichards";
 		solver.checkData = false;
-		solver.tTimestep = 3600.0;
-		solver.timeDelta = 50.0;
+		solver.tTimestep = 300.0;
+		solver.timeDelta = 300.0;
 		
-		solver.solve();
+		while( readerBC.doProcess  ) {
+			
+			readerBC.nextRecord();	
+			HashMap<Integer, double[]> bCValueMap = readerBC.outData;
+			solver.inBC= bCValueMap;
+			
+			solver.inCurrentDate = readerBC.tCurrent;
+			
+			solver.solve();
+			
+			buffer.inputDate = readerBC.tCurrent;
+			buffer.inputSpatialCoordinate = generateMesh.elementsCentroidsCoordinates;
+			buffer.inputDualSpatialCoordinate = generateMesh.edgesCentroidsCoordinates;
+			buffer.inputVariable = solver.outputToBuffer;
+			
+			buffer.solve();
+
+			writeNetCDF.fileName = pathOutput;
+			writeNetCDF.briefDescritpion = outputDescription;
+			writeNetCDF.myVariables = buffer.myVariable;
+			writeNetCDF.mySpatialCoordinateX = buffer.mySpatialCoordinateX;
+			writeNetCDF.mySpatialCoordinateZ = buffer.mySpatialCoordinateZ;
+			writeNetCDF.myDualSpatialCoordinateX = buffer.myDualSpatialCoordinateX;	
+			writeNetCDF.myDualSpatialCoordinateZ = buffer.myDualSpatialCoordinateZ;	
+			writeNetCDF.doProcess = readerBC.doProcess;
+			writeNetCDF.writeNetCDF();
+			
+		}
 		
 		
 	}
+	
+	private OmsTimeSeriesIteratorReader getTimeseriesReader( String inPath, String id, String startDate, String endDate,
+			int timeStepMinutes ) throws URISyntaxException {
+		OmsTimeSeriesIteratorReader reader = new OmsTimeSeriesIteratorReader();
+		reader.file = inPath;
+		reader.idfield = "ID";
+		reader.tStart = startDate;
+		reader.tTimestep = timeStepMinutes;
+		reader.tEnd = endDate;
+		reader.fileNovalue = "-9999";
+		reader.initProcess();
+		return reader;
+	}
+	
 }

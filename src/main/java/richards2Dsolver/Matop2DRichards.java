@@ -72,7 +72,7 @@ public class Matop2DRichards extends Matop {
 		//				System.out.println("\t" + element + "\t" + Apsi.get(element));
 		//			}
 		
-		for(Integer edge : Topology.edgesLabel.keySet()) {
+		for(Integer edge : Topology.edgesBoundaryBCType.keySet()) {
 			/*
 			 * FIXME: boundary conditions
 			 * if 0 no flux
@@ -80,7 +80,7 @@ public class Matop2DRichards extends Matop {
 			 * if 2 dirichlet
 			 */
 			
-			if(Topology.edgesLabel.get(edge)==2) { // dirichlet
+			if(Topology.edgesBoundaryBCType.get(edge)==2) { // dirichlet
 				kappa = Variables.kappas.get(Topology.l.get(edge))*Geometry.edgesLenght.get(edge);
 				sideFlux = Variables.timeDelta * kappa * ( -variable.get(Topology.l.get(edge)) )/Geometry.delta_j.get(edge);
 				

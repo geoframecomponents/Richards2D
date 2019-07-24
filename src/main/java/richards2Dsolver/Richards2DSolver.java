@@ -85,9 +85,9 @@ public class Richards2DSolver {
 	}
 
 
-	public void solve(double timeDelta) {
+	public void solve(HashMap<Integer, double[]> inBC) {
 
-		System.out.println("RICHARDS 2D] ");
+//		System.out.println("RICHARDS 2D] ");
 
 
 		/*
@@ -119,161 +119,195 @@ public class Richards2DSolver {
 			}
 		}
 
-		
-//		for(int picard=0; picard<1; picard++) {
 
+		//		for(int picard=0; picard<1; picard++) {
+
+		/*
+		 * Compute kappa at time level n
+		 */
+		for(Integer element : Topology.s_i.keySet()) {
+			Variables.kappas.put(element, unsaturatedHydraulicConductivity.hydraulicConductivity(element));
+		}
+
+		if(checkData == true) {
+			System.out.println("Kappa at time level n:");
+			for(Integer element : Variables.kappas.keySet()) {
+				System.out.println("\t"+ element + "\t" + Variables.kappas.get(element));
+			}
+		}
+
+
+		/*
+		 * Compute the right-hand side. The flux matrix entries are computed
+		 * with the matop
+		 * Note that the rhs contains the flux due to the gravitational potential
+		 */
+		for(Integer element : Topology.s_i.keySet()) {
+			rhss.put(element, Variables.volumes.get(element) );
+		}
+
+		for(Integer edge : Topology.l.keySet()) {
 			/*
-			 * Compute kappa at time level n
+			 * Fluxes through edges within the domain
 			 */
-			for(Integer element : Topology.s_i.keySet()) {
-				Variables.kappas.put(element, unsaturatedHydraulicConductivity.hydraulicConductivity(element));
+			double sideFlux = 0.0;
+
+			if(Topology.r.get(edge)==0) {
+				sideFlux = 0.0;  // depends on the type of the boundary condition and its value
+				rhss.put(Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux);
+			} else {
+				sideFlux = Variables.timeDelta*Math.max( Variables.kappas.get(Topology.l.get(edge)), Variables.kappas.get(Topology.r.get(edge)) )*( Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[1] - Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1] )/Geometry.delta_j.get(edge)*Geometry.edgesLenght.get(edge);
+				//					System.out.println("\t" + ( Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[1] - Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1] )/Geometry.delta_j.get(edge) + "\tn_z " + Geometry.edgeNormalVector.get(edge)[0]);
+				rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
+				rhss.put( Topology.r.get(edge), rhss.get(Topology.r.get(edge))-sideFlux );
+
 			}
+		}
 
-			if(checkData == true) {
-				System.out.println("Kappa at time level n:");
-				for(Integer element : Variables.kappas.keySet()) {
-					System.out.println("\t"+ element + "\t" + Variables.kappas.get(element));
-				}
-			}
-
-
+		double sumBoundaryFlow = 0.0;
+		for(Integer edge : Topology.edgesBoundaryBCType.keySet()) {
 			/*
-			 * Compute the right-hand side. The flux matrix entries are computed
-			 * with the matop
-			 * Note that the rhs contains the flux due to the gravitational potential
+			 * FIXME: boundary conditions
+			 * if 0 no flux
+			 * if 1 neumann 
 			 */
-			for(Integer element : Topology.s_i.keySet()) {
-				rhss.put(element, Variables.volumes.get(element) );
-			}
+			double sideFlux = 0.0;
 
-			for(Integer edge : Topology.l.keySet()) {
+			if(Topology.edgesBoundaryBCType.get(edge)==0) {
+				sideFlux = 0.0;  // no flux
+				rhss.put(Topology.l.get(edge), rhss.get(Topology.l.get(edge))-sideFlux);
+			} else if(Topology.edgesBoundaryBCType.get(edge)==1) { // neumann
+				sideFlux = Variables.timeDelta*Geometry.edgesLenght.get(edge)*inBC.get(Topology.edgesBoundaryBCValue.get(edge))[0];  //0.00000667;
+
+				rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
+				sumBoundaryFlow += sideFlux;
+
+			} else if(Topology.edgesBoundaryBCType.get(edge)==2) { // dirichlet
+				double kappa =  Variables.kappas.get(Topology.l.get(edge)) * Geometry.edgesLenght.get(edge); //, unsaturatedHydraulicConductivity.hydraulicConductivity(0.0,Topology.l.get(edge)) 
+				sideFlux = Variables.timeDelta * kappa * ( inBC.get(Topology.edgesBoundaryBCValue.get(edge))[0]/Geometry.delta_j.get(edge) + Geometry.edgeNormalVector.get(edge)[1] );// min(0.0,Geometry.edgeNormalVector.get(edge)[1])???
+				rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
+
+			} else if(Topology.edgesBoundaryBCType.get(edge)==3) { // free drainage
+//				System.out.println("\tfree drainage");
+				double kappa =  Variables.kappas.get(Topology.l.get(edge)) * Geometry.edgesLenght.get(edge);
 				/*
-				 * Fluxes through edges within the domain
+				 * FIXME: Math.min is necessary since the z component of normal vector can be positive and in that case
+				 * the free drainage is 0
 				 */
-				double sideFlux = 0.0;
+				sideFlux = Variables.timeDelta * kappa * (  Math.min(0.0,Geometry.edgeNormalVector.get(edge)[1]) );  // min(0.0,Geometry.edgeNormalVector.get(edge)[1])???
+				rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
+				sumBoundaryFlow += sideFlux;
+			}
 
-				if(Topology.r.get(edge)==0) {
-					sideFlux = 0.0;  // depends on the type of the boundary condition and its value
-					rhss.put(Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux);
+			//sumBoundaryFlow += sideFlux;
+		}
+
+
+		if(checkData == true) {
+			System.out.println("rhss :");
+			for(Integer element : Topology.s_i.keySet()) {
+				System.out.println("\t"+ element + "\t" + rhss.get(element));
+			}
+		}
+
+		/*
+		 * Linearize and solve the system:
+		 * - nested newton algorithm (Casulli and Zanolli, 2010)
+		 * - conjugate gradient method ( Shewchuk, 1994)
+		 */
+
+		// Initial guess for the outer iteration
+		nestedNewton.set(rhss);
+		nestedNewton.solver();
+
+
+		/*
+		 * Update variables and compute the error
+		 */
+		/*
+		 * Compute theta at time level n+1
+		 */
+		for(Integer element : Topology.s_i.keySet()) {
+			Variables.thetas.put(element, soilWaterRetentionCurve.waterContent(element));
+		}
+
+		if(checkData == true) {
+			System.out.println("Theta at time level n+1:");
+			for(Integer element : Variables.thetas.keySet()) {
+				System.out.println("\t"+ element + "\t" + Variables.thetas.get(element));
+			}
+		}
+
+		/*
+		 * Compute water volumes at time level n+1
+		 */
+		for(Integer element : Topology.s_i.keySet()) {
+			Variables.volumesNew.put(element, Variables.thetas.get(element)*Geometry.elementsArea.get(element));
+		}
+
+		if(checkData == true) {
+			System.out.println("Volume at time level n + 1:");
+			for(Integer element : Variables.volumes.keySet()) {
+				System.out.println("\t"+ element + "\t" + Variables.volumesNew.get(element) + "\t" + Geometry.elementsArea.get(element));
+			}
+		}
+
+		/*
+		 * Compute darcy fluxes at time level n+1
+		 */
+		double tmp;
+		for(Integer edge : Topology.l.keySet()) {
+			if(Topology.r.get(edge)==0) {
+				Variables.darcyVelocities.put(edge,0.0);
+				Variables.darcyVelocitiesX.put(edge,0.0*Geometry.edgeNormalVector.get(edge)[0]);
+				Variables.darcyVelocitiesZ.put(edge,0.0*Geometry.edgeNormalVector.get(edge)[1]);
+			} else {				
+				double kappa = Math.max( Variables.kappas.get(Topology.l.get(edge)), Variables.kappas.get(Topology.r.get(edge)) )*Geometry.edgesLenght.get(edge);
+				tmp = kappa * ( Variables.waterSuctions.get(Topology.r.get(edge)) + Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[1] -Variables.waterSuctions.get(Topology.l.get(edge)) - Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1] )/Geometry.delta_j.get(edge);
+				Variables.darcyVelocities.put(edge,tmp);
+//				Variables.darcyVelocitiesX.put(edge,tmp*Math.abs(Geometry.edgeNormalVector.get(edge)[0]));
+//				Variables.darcyVelocitiesZ.put(edge,tmp*Math.abs(Geometry.edgeNormalVector.get(edge)[1]));
+				if(Math.abs(Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[0]-Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[0]) < 0.0000001) {
+					Variables.darcyVelocitiesX.put(edge,0.0);
 				} else {
-					sideFlux = Variables.timeDelta*Math.max( Variables.kappas.get(Topology.l.get(edge)), Variables.kappas.get(Topology.r.get(edge)) )*( Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[1] - Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1] )/Geometry.delta_j.get(edge)*Geometry.edgesLenght.get(edge);
-
-					rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
-					rhss.put( Topology.r.get(edge), rhss.get(Topology.r.get(edge))-sideFlux );
-
-				}
-			}
-			
-			double sumBoundaryFlow = 0.0;
-			for(Integer edge : Topology.edgesLabel.keySet()) {
-				/*
-				 * FIXME: boundary conditions
-				 * if 0 no flux
-				 * if 1 neumann 
-				 */
-				double sideFlux = 0.0;
-
-				if(Topology.edgesLabel.get(edge)==0) {
-					sideFlux = 0.0;  // no flux
-					rhss.put(Topology.l.get(edge), rhss.get(Topology.l.get(edge))-sideFlux);
-				} else if(Topology.edgesLabel.get(edge)==1) { // neumann
-					sideFlux = Variables.timeDelta*Geometry.edgesLenght.get(edge)*0.0;  //0.00000667;
-
-					rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
-					sumBoundaryFlow += sideFlux;
-
-				} else if(Topology.edgesLabel.get(edge)==2) { // dirichlet
-					double kappa =  Variables.kappas.get(Topology.l.get(edge)) * Geometry.edgesLenght.get(edge); //, unsaturatedHydraulicConductivity.hydraulicConductivity(0.0,Topology.l.get(edge)) 
-					sideFlux = Variables.timeDelta * kappa * ( 0.1/Geometry.delta_j.get(edge) + Geometry.edgeNormalVector.get(edge)[1] );// min(0.0,Geometry.edgeNormalVector.get(edge)[1])???
-					rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
-					
-				} else if(Topology.edgesLabel.get(edge)==3) { // free drainage
-					double kappa =  Variables.kappas.get(Topology.l.get(edge)) * Geometry.edgesLenght.get(edge);
-					sideFlux = Variables.timeDelta * kappa * ( Geometry.edgeNormalVector.get(edge)[1] );  // min(0.0,Geometry.edgeNormalVector.get(edge)[1])???
-					System.out.println("edge: " + edge + "sideFlux: " + sideFlux);
-					rhss.put( Topology.l.get(edge), rhss.get(Topology.l.get(edge))+sideFlux );
-					sumBoundaryFlow += sideFlux;
+					Variables.darcyVelocitiesX.put(edge, -kappa*Math.abs(Geometry.edgeNormalVector.get(edge)[0])*( Variables.waterSuctions.get(Topology.r.get(edge)) + Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[1] -Variables.waterSuctions.get(Topology.l.get(edge)) - Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1] )/(Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[0]-Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[0]) );
 				}
 				
-				//sumBoundaryFlow += sideFlux;
-			}
-
-
-			if(checkData == true) {
-				System.out.println("rhss :");
-				for(Integer element : Topology.s_i.keySet()) {
-					System.out.println("\t"+ element + "\t" + rhss.get(element));
+				if(Math.abs(Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[1]-Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1]) < 0.0000001) {
+					Variables.darcyVelocitiesZ.put(edge,0.0);
+				} else {
+					Variables.darcyVelocitiesZ.put(edge, -kappa*Math.abs(Geometry.edgeNormalVector.get(edge)[1])*( Variables.waterSuctions.get(Topology.r.get(edge)) + Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[1] -Variables.waterSuctions.get(Topology.l.get(edge)) - Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1] )/(Geometry.elementsCentroidsCoordinates.get(Topology.r.get(edge))[1]-Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1]) );
 				}
 			}
-
-			/*
-			 * Linearize and solve the system:
-			 * - nested newton algorithm (Casulli and Zanolli, 2010)
-			 * - conjugate gradient method ( Shewchuk, 1994)
-			 */
-
-			// Initial guess for the outer iteration
-			nestedNewton.set(rhss);
-			nestedNewton.solver();
+		}
 
 
-			/*
-			 * Update variables and compute the error
-			 */
-			/*
-			 * Compute theta at time level n+1
-			 */
-			for(Integer element : Topology.s_i.keySet()) {
-				Variables.thetas.put(element, soilWaterRetentionCurve.waterContent(element));
+		/*
+		 * Update border fluxes with dirichlet 
+		 */
+		sumBoundaryFlow = 0.0;
+		for(Integer edge : Topology.edgesBoundaryBCType.keySet()) {
+			if(Topology.edgesBoundaryBCType.get(edge)==2) { // 
+				double kappa =  Variables.kappas.get(Topology.l.get(edge)) * Geometry.edgesLenght.get(edge); //, unsaturatedHydraulicConductivity.hydraulicConductivity(0.0,Topology.l.get(edge)) 
+				//sideFlux = Variables.timeDelta * kappa * ( 0.0 - Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1] )/Geometry.delta_j.get(edge);
+				sumBoundaryFlow += Variables.timeDelta * kappa * ( (inBC.get(Topology.edgesBoundaryBCValue.get(edge))[0]-Variables.waterSuctions.get(Topology.l.get(edge)))/Geometry.delta_j.get(edge) + Geometry.edgeNormalVector.get(edge)[1] );
 			}
+		}
+		double volume = 0.0;
+		double volumeNew = 0.0;
+		for(Integer element : Topology.s_i.keySet()) {
+			volume += Variables.volumes.get(element);
+			volumeNew += Variables.volumesNew.get(element);
+		}
 
-			if(checkData == true) {
-				System.out.println("Theta at time level n+1:");
-				for(Integer element : Variables.thetas.keySet()) {
-					System.out.println("\t"+ element + "\t" + Variables.thetas.get(element));
-				}
-			}
+		double errorVolume = volumeNew - volume - (sumBoundaryFlow + 0.0);
+		System.out.println("\tERROR VOLUME : " + errorVolume);
+		//			for(Integer element : Topology.s_i.keySet()) {
+		//				System.out.println("\t" + element + "\t" + Variables.waterSuctions.get(element) );
+		//			}
+		//			System.out.println("\n\n");
 
-			/*
-			 * Compute water volumes at time level n+1
-			 */
-			for(Integer element : Topology.s_i.keySet()) {
-				Variables.volumesNew.put(element, Variables.thetas.get(element)*Geometry.elementsArea.get(element));
-			}
-
-			if(checkData == true) {
-				System.out.println("Volume at time level n + 1:");
-				for(Integer element : Variables.volumes.keySet()) {
-					System.out.println("\t"+ element + "\t" + Variables.volumesNew.get(element) + "\t" + Geometry.elementsArea.get(element));
-				}
-			}
-
-			
-			/*
-			 * Update border fluxes with dirichlet 
-			 */
-			for(Integer edge : Topology.edgesLabel.keySet()) {
-				if(Topology.edgesLabel.get(edge)==2) { // 
-					double kappa =  Variables.kappas.get(Topology.l.get(edge)) * Geometry.edgesLenght.get(edge); //, unsaturatedHydraulicConductivity.hydraulicConductivity(0.0,Topology.l.get(edge)) 
-					//sideFlux = Variables.timeDelta * kappa * ( 0.0 - Geometry.elementsCentroidsCoordinates.get(Topology.l.get(edge))[1] )/Geometry.delta_j.get(edge);
-					sumBoundaryFlow += Variables.timeDelta * kappa * ( (0.1-Variables.waterSuctions.get(Topology.l.get(edge)))/Geometry.delta_j.get(edge) + Geometry.edgeNormalVector.get(edge)[1] );
-				}
-			}
-			double volume = 0.0;
-			double volumeNew = 0.0;
-			for(Integer element : Topology.s_i.keySet()) {
-				volume += Variables.volumes.get(element);
-				volumeNew += Variables.volumesNew.get(element);
-			}
-
-			double errorVolume = volumeNew - volume - (sumBoundaryFlow + 0.0);
-			System.out.println("ERROR VOLUME : " + errorVolume);
-			//			for(Integer element : Topology.s_i.keySet()) {
-			//				System.out.println("\t" + element + "\t" + Variables.waterSuctions.get(element) );
-			//			}
-			//			System.out.println("\n\n");
-
-//		} // close picard iteration
+		//		} // close picard iteration
 	}
 
 }

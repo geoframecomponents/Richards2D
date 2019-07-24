@@ -20,6 +20,7 @@
 package richards2Dsolver;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 import oms3.annotations.*;
@@ -51,12 +52,15 @@ public class CallRichards2DSolver {
 	
 	@In
 	public Map<Integer, Double[]> elementsCentroidsCoordinates;
-
+	
 	@In
 	public Map<Integer, Integer> elementsLabel;
 
 	@In
-	public Map<Integer, Integer> edgesLabel;
+	public Map<Integer, Integer> edgesBoundaryBCType;
+	
+	@In
+	public Map<Integer, Integer> edgesBoundaryBCValue;
 
 	@In
 	public double[] alphaSpecificStorage;
@@ -97,7 +101,7 @@ public class CallRichards2DSolver {
 	@In
 	public double[] thetaS;
 
-	@In
+	//@In
 	public Map<Integer, Double> psi;
 
 	@In
@@ -122,6 +126,22 @@ public class CallRichards2DSolver {
 	@In
 	@Unit ("s")
 	public double timeDelta = 1.0;
+	
+	// BOUNDARY CONDITIONS
+
+	@Description("The HashMap with the time series of the boundary condition at the top of soil column")
+	@In
+	@Unit ("m")
+	public HashMap<Integer, double[]> inBC;
+	
+	@Description("The current date of the simulation.")
+	@In
+	public String inCurrentDate;
+	
+	@Description("ArrayList of variable to be stored in the buffer writer")
+	@Out
+	public ArrayList<double[]> outputToBuffer;
+	
 	//////////////////////////////////////
 	//////////////////////////////////////
 
@@ -130,7 +150,9 @@ public class CallRichards2DSolver {
 	Geometry geometry;
 	Topology topology;
 
-
+	double[] tmpElement;
+	double[] tmpEdge;
+	
 	int step = 0;
 
 	///////////////////
@@ -140,19 +162,33 @@ public class CallRichards2DSolver {
 	@Execute
 	public void solve() {
 
-		System.out.println("RICHARDS 2D ");
+		System.out.println("RICHARDS 2D " + inCurrentDate);
 
 		if(step==0){
+			psi = new HashMap<Integer, Double>();
+			for(Integer i : elementsCentroidsCoordinates.keySet()) {
+				psi.put(i, -elementsCentroidsCoordinates.get(i)[1]);
+//				psi.put(i,-0.43737);
+//				psi.put(i,-0.42737);
+			}
 			variables = Variables.getInstance(psi);
 			Variables.timeDelta = timeDelta;
 			soilParameters = SoilParameters.getInstance(elementsLabel, alphaSpecificStorage, betaSpecificStorage, ks, 
 					par1SWRC, par2SWRC, par3SWRC, par4SWRC, par5SWRC, psiStar1, psiStar2, psiStar3, thetaR, thetaS);
 			geometry = Geometry.getInstance(elementsArea, edgesLenght, delta_j, edgeNormalVector, elementsCentroidsCoordinates);
-			topology = Topology.getInstance(l, r, edgesLabel, s_i);
+			topology = Topology.getInstance(l, r, edgesBoundaryBCType, edgesBoundaryBCValue, s_i);
 
 			richardsSolver = new Richards2DSolver(soilHydraulicModel, typeUHCModel, typeMatop, checkData);
+			
+			tmpElement = new double[Topology.s_i.size()+1];
+			tmpEdge = new double[Topology.r.size()+1];
+			
+			outputToBuffer= new ArrayList<double[]>();
 		}
 
+		
+		outputToBuffer.clear();
+		
 		double sumTimeDelta = 0;
 
 		//double volume = 0.0;
@@ -164,14 +200,49 @@ public class CallRichards2DSolver {
 			}
 			sumTimeDelta = sumTimeDelta + Variables.timeDelta;
 			
-			richardsSolver.solve(0.0);
+			richardsSolver.solve(inBC);
 			
 		}
 		
-		System.out.println("\n\nSOLUTION:");
-		for(Integer element : Topology.s_i.keySet()) {
-			System.out.println("\t" + element + "\t" + Variables.waterSuctions.get(element) );
+		for(Integer i : psi.keySet()) {
+			tmpElement[i] = psi.get(i);
 		}
+		outputToBuffer.add(tmpElement.clone());
+		
+		for(Integer i : Variables.waterSuctions.keySet()) {
+			tmpElement[i] = Variables.waterSuctions.get(i);
+		}
+		outputToBuffer.add(tmpElement.clone());
+		
+		for(Integer i : Variables.thetas.keySet()) {
+			tmpElement[i] = Variables.thetas.get(i);
+		}
+		outputToBuffer.add(tmpElement.clone());
+		
+		for(Integer i : Variables.darcyVelocities.keySet()) {
+			tmpEdge[i] = Variables.darcyVelocities.get(i);
+		}
+
+		outputToBuffer.add(tmpEdge.clone());
+		
+		for(Integer i : Variables.darcyVelocitiesX.keySet()) {
+			tmpEdge[i] = Variables.darcyVelocitiesX.get(i);
+		}
+
+		outputToBuffer.add(tmpEdge.clone());
+		
+		for(Integer i : Variables.darcyVelocitiesZ.keySet()) {
+			tmpEdge[i] = Variables.darcyVelocitiesZ.get(i);
+		}
+
+		outputToBuffer.add(tmpEdge.clone());
+		
+		
+//		System.out.println("\n\nSOLUTION:");
+//		for(Integer element : Topology.s_i.keySet()) {
+//			System.out.println("\t" + element + "\t" + Variables.waterSuctions.get(element) );
+//		}
 		System.out.println("\n\n");
+		
 	}
 }

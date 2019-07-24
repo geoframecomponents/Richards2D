@@ -21,7 +21,7 @@ package richards2Dsolver;
 import java.util.HashMap;
 import java.util.Map;
 
-import junit.framework.Assert;
+//import junit.framework.Assert;
 import physicalquantities.*;
 import rehology.*;
 import topology.Topology;

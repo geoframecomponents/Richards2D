@@ -34,26 +34,28 @@ private static Topology uniqueInstance;
 		return uniqueInstance;
 	}
 	
-	public static Topology getInstance(Map<Integer, Integer> l, Map<Integer, Integer> r, Map<Integer, Integer> edgesLabel,
-										Map<Integer, ArrayList<Integer>> s_i) {
+	public static Topology getInstance(Map<Integer, Integer> l, Map<Integer, Integer> r, Map<Integer, Integer> edgesBoundaryBCType,
+			 							Map<Integer, Integer> edgesBoundaryBCValue, Map<Integer, ArrayList<Integer>> s_i) {
 		if (uniqueInstance == null) {
-			uniqueInstance = new Topology(l, r, edgesLabel, s_i);
+			uniqueInstance = new Topology(l, r, edgesBoundaryBCType, edgesBoundaryBCValue, s_i);
 		}
 		return uniqueInstance;
 	}
 	
 	public static Map<Integer, Integer> l;
 	public static Map<Integer, Integer> r;
-	public static Map<Integer, Integer> edgesLabel;
+	public static Map<Integer, Integer> edgesBoundaryBCType;
+	public static Map<Integer, Integer> edgesBoundaryBCValue;
 	public static Map<Integer, ArrayList<Integer>> s_i;
 
 	
-	private Topology(Map<Integer, Integer> l, Map<Integer, Integer> r, Map<Integer, Integer> edgesLabel,
-						Map<Integer, ArrayList<Integer>> s_i) {
+	private Topology(Map<Integer, Integer> l, Map<Integer, Integer> r, Map<Integer, Integer> edgesBoundaryBCType,
+			 			Map<Integer, Integer> edgesBoundaryBCValue, Map<Integer, ArrayList<Integer>> s_i) {
 		
 		Topology.l = new HashMap<Integer, Integer>(l);
 		Topology.r = new HashMap<Integer, Integer>(r);
-		Topology.edgesLabel = new HashMap<Integer, Integer>(edgesLabel);
+		Topology.edgesBoundaryBCType = new HashMap<Integer, Integer>(edgesBoundaryBCType);
+		Topology.edgesBoundaryBCValue = new HashMap<Integer, Integer>(edgesBoundaryBCValue);
 		Topology.s_i = new HashMap<Integer, ArrayList<Integer>>(s_i);
 				
 	}

@@ -54,6 +54,8 @@ public class Variables {
 	public static Map<Integer, Double> volumes;
 	public static Map<Integer, Double> volumesNew;
 	public static Map<Integer, Double> darcyVelocities;
+	public static Map<Integer, Double> darcyVelocitiesX;
+	public static Map<Integer, Double> darcyVelocitiesZ;
 	public static Map<Integer, Double> darcyVelocitiesCapillary;
 	public static Map<Integer, Double> darcyVelocitiesGravity;
 	public static Map<Integer, Double> poreVelocities;
@@ -79,6 +81,8 @@ public class Variables {
 		Variables.volumes = new HashMap<Integer, Double>();
 		Variables.volumesNew = new HashMap<Integer, Double>();
 		Variables.darcyVelocities = new HashMap<Integer, Double>();
+		Variables.darcyVelocitiesX = new HashMap<Integer, Double>();
+		Variables.darcyVelocitiesZ = new HashMap<Integer, Double>();
 		Variables.darcyVelocitiesCapillary = new HashMap<Integer, Double>();
 		Variables.darcyVelocitiesGravity = new HashMap<Integer, Double>();
 		Variables.poreVelocities = new HashMap<Integer, Double>();
