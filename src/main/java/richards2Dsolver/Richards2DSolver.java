@@ -285,7 +285,6 @@ public class Richards2DSolver {
 		/*
 		 * Update border fluxes with dirichlet 
 		 */
-		sumBoundaryFlow = 0.0;
 		for(Integer edge : Topology.edgesBoundaryBCType.keySet()) {
 			if(Topology.edgesBoundaryBCType.get(edge)==2) { // 
 				double kappa =  Variables.kappas.get(Topology.l.get(edge)) * Geometry.edgesLenght.get(edge); //, unsaturatedHydraulicConductivity.hydraulicConductivity(0.0,Topology.l.get(edge)) 
