@@ -54,6 +54,9 @@ public class CallRichards2DSolver {
 	public Map<Integer, Double[]> elementsCentroidsCoordinates;
 	
 	@In
+	public Map<Integer, Double[]> edgesCentroidsCoordinates;
+	
+	@In
 	public Map<Integer, Integer> elementsLabel;
 
 	@In
@@ -112,7 +115,21 @@ public class CallRichards2DSolver {
 	
 	@In
 	public String typeMatop;
+	
+	@In
+	public String initialConditionType;
 
+	@In
+	public double newtonTolerance = 0.000000001;
+	
+	@In
+	public int MAXITER_NEWT = 20;
+	
+	@In
+	public int picardIteration =1;
+	
+	@In
+	public double cgTolerance = 0.000000001;
 
 	@In
 	public boolean checkData = false;
@@ -126,6 +143,11 @@ public class CallRichards2DSolver {
 	@In
 	@Unit ("s")
 	public double timeDelta = 1.0;
+	
+	@Description("Position of the seepage")
+	@In
+	@Unit ("m")
+	public double zSeePage = 0.0;
 	
 	// BOUNDARY CONDITIONS
 
@@ -165,20 +187,31 @@ public class CallRichards2DSolver {
 		System.out.println("RICHARDS 2D " + inCurrentDate);
 
 		if(step==0){
+			
 			psi = new HashMap<Integer, Double>();
-			for(Integer i : elementsCentroidsCoordinates.keySet()) {
-				psi.put(i, -elementsCentroidsCoordinates.get(i)[1]);
-//				psi.put(i,-0.43737);
-//				psi.put(i,-0.42737);
+			/*
+			 * Compute the initial condition
+			 */
+			if( initialConditionType.equalsIgnoreCase("hydrostatic") ) {
+				for(Integer i : elementsCentroidsCoordinates.keySet()) {
+					psi.put(i, zSeePage-elementsCentroidsCoordinates.get(i)[1]);
+				}
+			} else if (initialConditionType.equalsIgnoreCase("constant") ) {
+				for(Integer i : elementsCentroidsCoordinates.keySet()) {
+					psi.put(i,zSeePage);
+				}
+			} else {
+				System.out.println("Error: initial condition not valid.");
 			}
+
 			variables = Variables.getInstance(psi);
 			Variables.timeDelta = timeDelta;
 			soilParameters = SoilParameters.getInstance(elementsLabel, alphaSpecificStorage, betaSpecificStorage, ks, 
 					par1SWRC, par2SWRC, par3SWRC, par4SWRC, par5SWRC, psiStar1, psiStar2, psiStar3, thetaR, thetaS);
-			geometry = Geometry.getInstance(elementsArea, edgesLenght, delta_j, edgeNormalVector, elementsCentroidsCoordinates);
+			geometry = Geometry.getInstance(elementsArea, edgesLenght, delta_j, edgeNormalVector, elementsCentroidsCoordinates, edgesCentroidsCoordinates);
 			topology = Topology.getInstance(l, r, edgesBoundaryBCType, edgesBoundaryBCValue, s_i);
 
-			richardsSolver = new Richards2DSolver(soilHydraulicModel, typeUHCModel, typeMatop, checkData);
+			richardsSolver = new Richards2DSolver(soilHydraulicModel, typeUHCModel, typeMatop, MAXITER_NEWT, newtonTolerance, picardIteration, cgTolerance, checkData);
 			
 			tmpElement = new double[Topology.s_i.size()+1];
 			tmpEdge = new double[Topology.r.size()+1];
@@ -219,29 +252,30 @@ public class CallRichards2DSolver {
 		}
 		outputToBuffer.add(tmpElement.clone());
 		
+		for(Integer i : Variables.saturationDegree.keySet()) {
+			tmpElement[i] = Variables.saturationDegree.get(i);
+		}
+		outputToBuffer.add(tmpElement.clone());
+		
 		for(Integer i : Variables.darcyVelocities.keySet()) {
 			tmpEdge[i] = Variables.darcyVelocities.get(i);
 		}
-
 		outputToBuffer.add(tmpEdge.clone());
 		
 		for(Integer i : Variables.darcyVelocitiesX.keySet()) {
 			tmpEdge[i] = Variables.darcyVelocitiesX.get(i);
 		}
-
 		outputToBuffer.add(tmpEdge.clone());
 		
 		for(Integer i : Variables.darcyVelocitiesZ.keySet()) {
 			tmpEdge[i] = Variables.darcyVelocitiesZ.get(i);
 		}
-
 		outputToBuffer.add(tmpEdge.clone());
+				
 		
 		
-//		System.out.println("\n\nSOLUTION:");
-//		for(Integer element : Topology.s_i.keySet()) {
-//			System.out.println("\t" + element + "\t" + Variables.waterSuctions.get(element) );
-//		}
+		step ++;
+		
 		System.out.println("\n\n");
 		
 	}

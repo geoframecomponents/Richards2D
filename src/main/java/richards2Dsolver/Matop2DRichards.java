@@ -29,6 +29,7 @@ import topology.Topology;
 public class Matop2DRichards extends Matop {
 	
 	private static Matop2DRichards uniqueInstance;
+	public Map<Integer, Double> Apsi;
 	
 	public static Matop2DRichards getInstance() {
 		if (uniqueInstance == null) {
@@ -37,14 +38,18 @@ public class Matop2DRichards extends Matop {
 		return uniqueInstance;
 	}
 	
+	public Matop2DRichards() {
+		Apsi = new HashMap<Integer,Double>();
+	}
 
 	public Map<Integer, Double> solve(Map<Integer, Double> dis, Map<Integer, Double> variable) {
 
-		Map<Integer, Double> Apsi = new HashMap<Integer,Double>();
+		//Map<Integer, Double> Apsi = new HashMap<Integer,Double>();
 		double sideFlux = 0.0;
 		double sigma;
 		double kappa;
 
+		Apsi.clear();
 		for(Integer element : Topology.s_i.keySet()) {
 			Apsi.put(element, dis.get(element)*variable.get(element));
 		}

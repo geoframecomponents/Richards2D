@@ -45,6 +45,7 @@ public class Variables {
 	public static Map<Integer, Double> thetasOld;
 	public static Map<Integer, Double> thetas;
 	public static Map<Integer, Double> thetasNew;
+	public static Map<Integer, Double> saturationDegree;
 	public static Map<Integer, Double> dThetas;
 	public static Map<Integer, Double> dThetas1;
 	public static Map<Integer, Double> dThetas2;
@@ -67,11 +68,11 @@ public class Variables {
 
 	private Variables(Map<Integer, Double> waterSuction) {
 		
-		Variables.waterSuctions = new HashMap<Integer, Double>();
-		Variables.waterSuctions = waterSuction;
+		Variables.waterSuctions = new HashMap<Integer, Double>(waterSuction);
 		Variables.thetasOld = new HashMap<Integer, Double>();
 		Variables.thetas = new HashMap<Integer, Double>();
 		Variables.thetasNew = new HashMap<Integer, Double>();
+		Variables.saturationDegree = new HashMap<Integer, Double>();
 		Variables.dThetas = new HashMap<Integer, Double>();
 		Variables.dThetas1 = new HashMap<Integer, Double>();
 		Variables.dThetas2 = new HashMap<Integer, Double>();

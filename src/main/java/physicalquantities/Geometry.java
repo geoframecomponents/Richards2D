@@ -34,9 +34,9 @@ private static Geometry uniqueInstance;
 	}
 	
 	public static Geometry getInstance(Map<Integer, Double> elementsArea, Map<Integer, Double> edgesLenght, Map<Integer, Double> delta_j,
-			Map<Integer, Double[]> edgeNormalVector, Map<Integer, Double[]> elementsCentroidsCoordinates) {
+			Map<Integer, Double[]> edgeNormalVector, Map<Integer, Double[]> elementsCentroidsCoordinates, Map<Integer, Double[]> edgesCentroidsCoordinates) {
 		if (uniqueInstance == null) {
-			uniqueInstance = new Geometry(elementsArea, edgesLenght, delta_j, edgeNormalVector, elementsCentroidsCoordinates);
+			uniqueInstance = new Geometry(elementsArea, edgesLenght, delta_j, edgeNormalVector, elementsCentroidsCoordinates, edgesCentroidsCoordinates);
 		}
 		return uniqueInstance;
 	}
@@ -46,10 +46,12 @@ private static Geometry uniqueInstance;
 	public static Map<Integer, Double> delta_j;
 	public static Map<Integer, Double[]> edgeNormalVector;
 	public static Map<Integer, Double[]> elementsCentroidsCoordinates;
+	public static Map<Integer, Double[]> edgesCentroidsCoordinates;
+
 
 	
 	private Geometry(Map<Integer, Double> elementsArea, Map<Integer, Double> edgesLenght, Map<Integer, Double> delta_j,
-			 Map<Integer, Double[]> edgeNormalVector, Map<Integer, Double[]> elementsCentroidsCoordinates) {
+			 Map<Integer, Double[]> edgeNormalVector, Map<Integer, Double[]> elementsCentroidsCoordinates, Map<Integer, Double[]> edgesCentroidsCoordinates) {
 		
 		Geometry.elementsArea = new HashMap<Integer, Double>();
 		Geometry.edgesLenght = new HashMap<Integer, Double>();
@@ -62,6 +64,7 @@ private static Geometry uniqueInstance;
 		Geometry.delta_j = delta_j;
 		Geometry.edgeNormalVector = edgeNormalVector;
 		Geometry.elementsCentroidsCoordinates = elementsCentroidsCoordinates;
+		Geometry.edgesCentroidsCoordinates = edgesCentroidsCoordinates;
 		
 	}
 

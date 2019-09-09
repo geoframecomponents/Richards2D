@@ -42,7 +42,8 @@ public class MualemVanGenuchten extends UnsaturatedHydraulicConductivity {
 		
 		this.m = 1-1/SoilParameters.par1[ID];
 		//super.saturationDegree = super.modelSWRC.saturationDegree(i); 
-		super.saturationDegree = (Variables.thetasOld.get(i)-SoilParameters.thetaR[ID])/(SoilParameters.thetaS[ID]-SoilParameters.thetaR[ID]); 
+		//super.saturationDegree = (Variables.thetasOld.get(i)-SoilParameters.thetaR[ID])/(SoilParameters.thetaS[ID]-SoilParameters.thetaR[ID]);
+		super.saturationDegree = (super.modelSWRC.waterContent(i)-SoilParameters.thetaR[ID])/(SoilParameters.thetaS[ID]-SoilParameters.thetaR[ID]);
 		if(super.saturationDegree<1) {
 			return SoilParameters.kappaSaturation[ID] * Math.pow(super.saturationDegree, 0.5 ) * Math.pow(1.0 - Math.pow(1.0 - Math.pow(super.saturationDegree, 1.0/this.m), this.m), 2.0);
 		} else {

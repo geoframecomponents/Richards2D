@@ -48,20 +48,21 @@ public class ConjugateGradientMethod {
 	double alphak;
 	double lambda;
 	double tmp;
+	double cgTolerance;
 	Map<Integer, Double> residual;
 	Map<Integer, Double> x;
 	Map<Integer, Double> p;
 	Map<Integer, Double> Apsi;
 	Matop matop;
 	
-	public ConjugateGradientMethod(Matop matop) {
+	public ConjugateGradientMethod(Matop matop, double cgTolerance) {
 		
 		residual = new HashMap<Integer, Double>();
 		x = new HashMap<Integer, Double>();
 		p = new HashMap<Integer, Double>();
 		Apsi = new HashMap<Integer, Double>();
 		this.matop = matop;
-		
+		this.cgTolerance = cgTolerance;
 	}
 
 	public Map<Integer, Double> solve(Map<Integer, Double> dis, Map<Integer, Double> b){
@@ -71,37 +72,74 @@ public class ConjugateGradientMethod {
 		Apsi = matop.solve(dis, x);
 		alpha = 0.0;
 		for(Integer element : Topology.s_i.keySet()) {
-			residual.put(element, x.get(element)-Apsi.get(element));
+			residual.put(element, b.get(element)-Apsi.get(element));
 			p.put(element, residual.get(element));
 			alpha += residual.get(element)*residual.get(element);
 		}
-
+		int iter =1;
 		for(int k=1; k<4*x.size();k++) {
 
-			if(Math.sqrt(alpha)<Math.pow(10, -12)) {
+			if(Math.sqrt(alpha)<=cgTolerance) {
+//				System.out.println("\t\t\t\t\tk: " + k +"\tsqrt(alpha): " +Math.sqrt(alpha));
 				break;
 			}
-
+//			System.out.println("\t\tk: " + k);
+//			if(k==17) {
+//				System.out.println("\t\tk = 17");
+//			}
 			tmp = 0.0;
+
 			Apsi = matop.solve(dis, p);
+//			if(k>=1700000) {
+//				System.out.println("Apsi :");
+//				for(Integer element : Topology.s_i.keySet()) {
+//					System.out.println("\t"+ element + "\t" + Apsi.get(element));
+//				}
+//			}
+			tmp = 0.0;
 			for(Integer element : Topology.s_i.keySet()) {
 				tmp += p.get(element)*Apsi.get(element);
 			}
 			lambda = alpha/tmp;
+//			System.out.println("\t\t\t\ttmp: " + tmp + "\tlambda: " + lambda);
 
 			alphak = alpha;
 			alpha = 0.0;
 			for(Integer element : Topology.s_i.keySet()) {
-				x.put(element, x.get(element) + lambda*p.get(element));
-				residual.put(element, residual.get(element) - lambda*Apsi.get(element));
-				alpha += residual.get(element)*residual.get(element);
+				tmp = x.get(element) + lambda*p.get(element);
+				x.put(element, tmp);
+				tmp = residual.get(element) - lambda*Apsi.get(element);
+				residual.put(element, tmp);
+				//alpha += residual.get(element)*residual.get(element);
+				alpha += tmp*tmp;
 			}
-
+			
+//			if(k>=170000) {
+//				System.out.println("\n\nx :");
+//				for(Integer element : Topology.s_i.keySet()) {
+//					System.out.println("\t"+ element + "\t" + x.get(element));
+//				}
+//			}
+//			if(k>=170000) {
+//				System.out.println("\n\nresidual :");
+//				for(Integer element : Topology.s_i.keySet()) {
+//					System.out.println("\t"+ element + "\t" + residual.get(element));
+//				}
+//			}
+//			System.out.println("\t\t\t\t\talpha: " + alpha + "\talphak: " + alphak);
 			for(Integer element : Topology.s_i.keySet()) {
-				p.put(element, residual.get(element)+alpha/alphak*p.get(element) );
+				tmp = residual.get(element)+alpha/alphak*p.get(element);
+				p.put(element, tmp );
 			}
-
+//			if(k>=170000) {
+//				System.out.println("\n\np :");
+//				for(Integer element : Topology.s_i.keySet()) {
+//					System.out.println("\t"+ element + "\t" + p.get(element));
+//				}
+//			}
+			iter++;
 		}
+		System.out.println("\t\t\t\t\tk: " + iter +"\tsqrt(alpha): " +Math.sqrt(alpha));
 
 		return x;
 	}

@@ -28,10 +28,10 @@ import org.junit.Test;
 
 import bidimensionalProblemTimeDependent.WriteNetCDFRichards2D;
 import bufferWriter.RichardsBuffer2D;
-import generatemesh.GenerateTriangularMesh;
-import meshtopology.TopologyTriangularMesh;
-import monodimensionalProblemTimeDependent.WriteNetCDFRichards1D;
-import readtriangularization.Readmsh;
+import generatemesh.GenerateMesh;
+//import meshtopology.TopologyTriangularMesh;
+//import monodimensionalProblemTimeDependent.WriteNetCDFRichards1D;
+import readtriangularization.*;
 
 public class TestCallRichardsSolver {
 
@@ -39,37 +39,40 @@ public class TestCallRichardsSolver {
 	public void Test() throws Exception {
 
 		//String fileName = "resources/input/square_with_subdomain_100.msh";
-		//String fileName = "resources/input/square22_1.msh";
-		String fileName = "resources/input/boundary_condition.msh";
-
+		//String fileName = "resources/input/square22_1_simmetrico.msh";
+		//String fileName = "resources/input/layer_DD.msh";
+		//String fileName = "resources/input/CasulliOK.csv";//100x60_NN_1.csv"; //column160.csv";
+		String fileName = "resources/input/square23_2.msh";
 		String splitter = " ";
 
 		Readmsh reader = new Readmsh();
+		//Readcsv reader = new Readcsv();
 		reader.fileName = fileName;
 		reader.splitter = splitter;
 		reader.checkData = false;
 		reader.process();
 		
 		//GenerateMeshTriangles generateMesh = new GenerateMeshTriangles();
-		GenerateTriangularMesh generateMesh = new GenerateTriangularMesh();
+		GenerateMesh generateMesh = new GenerateMesh();
 		generateMesh.verticesCoordinates = reader.verticesCoordinates;
 		generateMesh.elementsVertices = reader.elementsVertices;
 		generateMesh.borderEdgesVertices = reader.borderEdgesVertices;
 		generateMesh.borderEdgesLabel = reader.borderEdgesLabel;
 		generateMesh.checkData = false;
+		generateMesh.meshType = "triangular";
 		generateMesh.geometryType = "EuclideanCartesian";
 		generateMesh.process();
 		
 		//Boundary conditions
 		String startDate = "2017-01-01 00:00";
-		String endDate = "2017-01-02 00:00";
+		String endDate = "2017-01-01 00:05";
 		int timeStepMinutes = 5;
 		String fId = "ID";
 		
 		//NetCDF
-		String pathOutput = "C:\\Users\\Niccolo\\eclipse-workspace\\Richards2D\\resources\\output.nc"; //Output_EGU_Soil_1_Richards_KWithTemp_New1.nc";
-		
-		String outputDescription = " Prova 2D";
+		//String pathOutput = "C:\\Users\\Niccolo\\eclipse-workspace\\Richards2D\\resources\\MCBride2016.nc";
+		String pathOutput = "C:\\Users\\Niccolo\\eclipse-workspace\\Richards2D\\resources\\square23_2.nc";
+		String outputDescription = "";//Mc Bride 2016 problem 4. picard iteration 2, Nested Newton tol 1E-9, CG tol 1E-9, delta t 3600s.";
 		
 		
 		String path ="resources/input/Test.csv";
@@ -82,35 +85,21 @@ public class TestCallRichardsSolver {
 		
 		double[] alphaSpecificStorage = new double[] {0.0, 0.0};
 		double[] betaSpecificStorage = new double[] {0.0, 0.0};
-		double[] ks = new double[] {0.00028, 0.00028};//{0.0000028, 0.0000123};
-		double[] par1SWRC = new double[] {1.56,1.56};
-		double[] par2SWRC = new double[] {3.6,3.6};
+		double[] ks = new double[] {0.0015167, 0.0000626};//new double[] {0.0000015167, 0.0000626};//0.00626};//{0.0000028, 0.0000123};0.00015167
+		double[] par1SWRC = new double[] {1.3954, 2.239}; //1.76
+		double[] par2SWRC = new double[] {1.04, 2.8};   //2.6
 		double[] par3SWRC = null;
 		double[] par4SWRC = null;
 		double[] par5SWRC = null;
-		double[] psiStar1 = new double[] {-0.144,-0.144};
+		double[] psiStar1 = new double[] {-1/1.04*Math.pow(( 0.3954/1.3954),1/1.3954), -1/2.8*Math.pow(( 1.239/2.239),1/2.239)}; //-0.431-0.274199255289329
 		double[] psiStar2 = null;
 		double[] psiStar3 = null;
-		double[] thetaS = new double[] {0.43,0.43};
-		double[] thetaR = new double[] {0.078,0.078};
-		
-		/*
-		 * Compute the initial condition
-		 */
-		Map<Integer, Double> psi = new HashMap<Integer, Double>();
-		for(Integer i : generateMesh.elementsCentroidsCoordinates.keySet()) {
-			psi.put(i, -generateMesh.elementsCentroidsCoordinates.get(i)[1]);
-//			psi.put(i,-0.43737);
-//			psi.put(i,-0.42737);
-		}
-		//psi.put(6, 0.0);
-		//psi.put(5, 0.0);
-		//psi.put(8, 0.0);
-		//psi.put(7, 0.0);
-		System.out.println("Initial condition:");
-		for(Integer i : psi.keySet()) {
-			System.out.println("\telement:" + i + " psi = " + psi.get(i));
-		}
+		double[] thetaS = new double[] {0.4686, 0.3658};//0.4686};
+		double[] thetaR = new double[] {0.1060, 0.0286};//0.1060};
+		//double[] thetaR = new double[] {0.2262, 0.07818};//0.1060}; casulli2
+		//double[] thetaR = new double[] {0.1060, 0.07818};//0.1060}; casulli4
+
+
 		
 		CallRichards2DSolver solver = new CallRichards2DSolver();
 		solver.l = generateMesh.l;
@@ -121,6 +110,7 @@ public class TestCallRichardsSolver {
 		solver.delta_j = generateMesh.delta_j;
 		solver.edgeNormalVector = generateMesh.edgeNormalVector;
 		solver.elementsCentroidsCoordinates = generateMesh.elementsCentroidsCoordinates;
+		solver.edgesCentroidsCoordinates = generateMesh.edgesCentroidsCoordinates;
 		solver.alphaSpecificStorage = alphaSpecificStorage;
 		solver.betaSpecificStorage = betaSpecificStorage;
 		solver.ks = ks;
@@ -137,13 +127,18 @@ public class TestCallRichardsSolver {
 		solver.elementsLabel = reader.elementsLabel;
 		solver.edgesBoundaryBCType = generateMesh.edgeBoundaryBCType;
 		solver.edgesBoundaryBCValue = generateMesh.edgeBoundaryBCValue;
-		//solver.psi = psi;
 		solver.soilHydraulicModel = "VanGenuchten";
 		solver.typeUHCModel = "MualemVanGenuchten";
 		solver.typeMatop = "2DRichards";
+		solver.initialConditionType = "hydrostatic";
+		solver.newtonTolerance = 0.000000001;
+		solver.MAXITER_NEWT = 30;
+		solver.picardIteration = 1; 
+		solver.cgTolerance = 0.000000001;
 		solver.checkData = false;
 		solver.tTimestep = 300.0;
 		solver.timeDelta = 300.0;
+		solver.zSeePage = -2.0;
 		
 		while( readerBC.doProcess  ) {
 			

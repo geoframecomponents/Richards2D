@@ -68,6 +68,7 @@ public class NestedNewton {
 	Map<Integer, Double> dis;
 	Map<Integer, Double> dpsis;
 	Map<Integer, Double> psis_outer;
+	Map<Integer, Double> psism;
 
 	SoilWaterRetentionCurve swrc;
 	//TotalDepth totalDepth;
@@ -90,14 +91,14 @@ public class NestedNewton {
 	 * @param thetaR vector containing the adimensional residual water contentfor each control volume, it is a vector of length NUM_CONTROL_VOLUMES-1
 	 * @param thetaS vector containing the adimensional water content at saturation for each control volume, it is a vector of length NUM_CONTROL_VOLUMES-1
 	 */
-	public NestedNewton(int nestedNewton, double newtonTolerance, int MAXITER_NEWT, SoilWaterRetentionCurve swrc, Matop matop){
+	public NestedNewton(int nestedNewton, double newtonTolerance, int MAXITER_NEWT, SoilWaterRetentionCurve swrc, Matop matop, double cgTolerance){
 
 		this.nestedNewton = nestedNewton;
 		this.newtonTolerance = newtonTolerance;
 		this.MAXITER_NEWT = MAXITER_NEWT;
 		this.swrc = swrc;
 		this.matop = matop;
-		this.cg = new ConjugateGradientMethod(matop);
+		this.cg = new ConjugateGradientMethod(matop, cgTolerance);
 
 
 		fs			  = new HashMap<Integer, Double>();
@@ -105,6 +106,7 @@ public class NestedNewton {
 		dis			  = new HashMap<Integer, Double>();
 		dpsis		  = new HashMap<Integer, Double>();
 		psis_outer	  = new HashMap<Integer, Double>();
+		psism          = new HashMap<Integer, Double>();
 	}
 
 
@@ -133,7 +135,8 @@ public class NestedNewton {
 			//			if(i==NUM_CONTROL_VOLUMES-1) {
 			//				psis[i] = Math.max(psis[i],0.1);
 			//				//System.out.println(i +"   "+psis[i]);
-			Variables.waterSuctions.put(element, Math.min(Variables.waterSuctions.get(element), SoilParameters.psiStar1[SoilParameters.elementsLabel.get(element)]));
+			tmp = Math.min(Variables.waterSuctions.get(element), SoilParameters.psiStar1[SoilParameters.elementsLabel.get(element)]);
+			Variables.waterSuctions.put(element, tmp);
 			//System.out.println(i +"   "+psis[i]);
 		}
 
@@ -146,32 +149,28 @@ public class NestedNewton {
 			}
 			//Apsi = matop2DRichards(dis, Variables.waterSuctions);
 			Apsi = matop.solve(dis, Variables.waterSuctions);
+//			System.out.println("Apsi :");
+//			for(Integer element : Topology.s_i.keySet()) {
+//				System.out.println("\t"+ element + "\t" + Apsi.get(element));
+//			}
+//			System.out.println("fs :");
 			for(Integer element : Topology.s_i.keySet()) {
+				tmp =  swrc.dWaterContent(Variables.waterSuctions.get(element),element)*Geometry.elementsArea.get(element);
+				dis.put(element, tmp );
 				tmp = swrc.waterContent(Variables.waterSuctions.get(element),element)*Geometry.elementsArea.get(element) - rhss.get(element) + Apsi.get(element);
 				fs.put(element, tmp);
-				dis.put(element, swrc.dWaterContent(Variables.waterSuctions.get(element),element)*Geometry.elementsArea.get(element));
-				//System.out.println(j+" "+fs[j]);
-
+//				System.out.println(element +": " +swrc.waterContent(Variables.waterSuctions.get(element),element) +" "+Geometry.elementsArea.get(element) +" "+rhss.get(element)+" "+ Apsi.get(element)+" " +fs.get(element) + " " + dis.get(element));
+//				System.out.println("\t"+ element + "\t" + fs.get(element));
+		
 				outerResidual += tmp*tmp;
 			}
 			outerResidual = Math.pow(outerResidual,0.5);  
-//			System.out.println("\t-Outer iteration " + i + " with residual " +  outerResidual);
+			System.out.println("\t\t-Outer iteration " + i + " with residual " +  outerResidual);
 			if(outerResidual < newtonTolerance) {
 				break;
 			}
 			if(nestedNewton == 0){
-				//				bb = mainDiagonal.clone();
-				//				cc = upperDiagonal.clone();
-				//				for(int y = 0; y < NUM_CONTROL_VOLUMES; y++) {
-				//					bb[y] += dis[y];
-				//				}
-				//				thomasAlg.set(cc,bb,lowerDiagonal,fs);
-				//				dpsis = thomasAlg.solver();
-				//
-				//				//// PSIS UPDATE ////
-				//				for(int s = 0; s < NUM_CONTROL_VOLUMES; s++) {
-				//					psis[s] = psis[s] - dpsis[s];
-				//				}
+
 			}else{
 
 				// Initial guess for the inner iteration (optional)
@@ -180,7 +179,7 @@ public class NestedNewton {
 					//				psis[i] = Math.max(psis[i],0.1);
 					//				//System.out.println(i +"   "+psis[i]);
 					psis_outer.put(element, Variables.waterSuctions.get(element));
-					Variables.waterSuctions.put(element, Math.max(Variables.waterSuctions.get(element), SoilParameters.psiStar1[SoilParameters.elementsLabel.get(element)]));
+					//Variables.waterSuctions.put(element, Math.max(Variables.waterSuctions.get(element), SoilParameters.psiStar1[SoilParameters.elementsLabel.get(element)]));
 				}
 
 				//// INNER CYCLE ////
@@ -192,45 +191,77 @@ public class NestedNewton {
 					}
 					//Apsi = matop2DRichards(dis, Variables.waterSuctions);
 					Apsi = matop.solve(dis, Variables.waterSuctions);
+//					System.out.println("Apsi :");
+//					for(Integer element : Topology.s_i.keySet()) {
+//						System.out.println("\t"+ element + "\t" + Apsi.get(element));
+//					}
+//					System.out.println("fks :");
 					for(Integer element : Topology.s_i.keySet()) {
 
+						tmp = (swrc.p(Variables.waterSuctions.get(element),element) - swrc.q(psis_outer.get(element),element))*Geometry.elementsArea.get(element);
+						dis.put(element, tmp);
 						tmp = swrc.pIntegral(Variables.waterSuctions.get(element),element)*Geometry.elementsArea.get(element)
 								- ( swrc.qIntegral(psis_outer.get(element),element) + swrc.q(psis_outer.get(element),element)*(Variables.waterSuctions.get(element) - psis_outer.get(element)) )*Geometry.elementsArea.get(element)
 								- rhss.get(element) + Apsi.get(element);
 						fks.put(element, tmp);
-						dis.put(element, (swrc.p(Variables.waterSuctions.get(element),element) - swrc.q(Variables.waterSuctions.get(element),element))*Geometry.elementsArea.get(element));
+
+//						System.out.println(element +" "+fks.get(element) + " " + dis.get(element));
+//						System.out.println("\t"+ element + "\t" + fks.get(element));
 
 						innerResidual += tmp*tmp;
 					}
 
 					innerResidual = Math.pow(innerResidual,0.5);
 
-//					System.out.println("\t\t-Inner iteration " + j + " with residual " +  innerResidual);    
+					System.out.println("\t\t\t-Inner iteration " + j + " with residual " +  innerResidual);    
 
 					if(innerResidual < newtonTolerance) {
+//						System.out.println("Psi:");
+//						for(Integer element : Topology.s_i.keySet()) {
+//							System.out.println("\t"+ element + "\t" + Variables.waterSuctions.get(element));
+//
+//						}
+//
+//						System.out.println("\n\n");
+//						System.out.println("dpsi:");
+//						for(Integer element : Topology.s_i.keySet()) {
+//							System.out.println("\t"+ element + "\t" + dpsis.get(element));
+//
+//						}
+//						
 						break;
 					}
 					//// CONJUGATE GRADIENT METHOD////
 					//dpsis = conjugateGradientMethod(dis, fks);
 					dpsis = cg.solve(dis, fks);
+//					System.out.println("dpsis :");
+//					for(Integer element : Topology.s_i.keySet()) {
+//						System.out.println("\t"+ element + "\t" + dpsis.get(element));
+//					}
 					for(Integer element : Topology.s_i.keySet()) {
-						Variables.waterSuctions.put(element, Variables.waterSuctions.get(element)-dpsis.get(element));
+//						psism.put(element, Variables.waterSuctions.get(element));
+						tmp  = Variables.waterSuctions.get(element)-dpsis.get(element);
+						Variables.waterSuctions.put(element, tmp );
 					}
-				}
+//					if(j>1) {
+//						for(Integer element : Topology.s_i.keySet()) {
+//							Variables.waterSuctions.put(element, Math.min( Variables.waterSuctions.get(element), psism.get(element)) );
+//							if(i>1) {
+//									Variables.waterSuctions.put(element, Math.max( Variables.waterSuctions.get(element), psis_outer.get(element)) );
+//							}
+//						}
+//					}
+				} //// INNER CYCLE END ////
 
-				//
-				//					thomasAlg.set(cc,bb,lowerDiagonal,fks);
-				//					dpsis = thomasAlg.solver();
-				//
-				//					//// PSIS UPDATE ////
-				//					for(int s = 0; s < NUM_CONTROL_VOLUMES; s++) {
-				//						psis[s] = psis[s] - dpsis[s];
-				//					}
-				//				}
-				//			} //// INNER CYCLE END ////
 			}
 			//		return psis;
-		}
+//			if(i>1) {
+//				for(Integer element : Topology.s_i.keySet()) {
+//					Variables.waterSuctions.put(element, Math.max( Variables.waterSuctions.get(element), psis_outer.get(element)) );
+//				}
+//			}
+		} //// OUTER CYCLE END ////
+
 	}
 
 
