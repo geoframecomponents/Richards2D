@@ -47,9 +47,9 @@ repositories {
 }
 
 dependencies {
-	compile name: 'GenerateMesh-na'
-	//compile name: 'PhysicalQuantities'
-	//compile name: 'NetCDF-0.0.1'
+	compile name: 'GenerateMesh-0.0.1'//'GM_PROVA'//
+	//compile name: 'PhysicalQuantities'//'N_PROVA'//
+	compile name: 'NetCDF-0.0.1'
     // This dependency is exported to consumers, that is to say found on their compile classpath.
     //api 'org.apache.commons:commons-math3:3.6.1'
 
